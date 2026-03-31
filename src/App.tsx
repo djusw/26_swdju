@@ -3,21 +3,62 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ClipboardCheck,
   Settings,
   User as UserIcon,
-  ShieldCheck
+  ShieldCheck,
+  BarChart3
 } from 'lucide-react';
 import { AdminMode } from './components/AdminMode';
-import { UserMode } from './components/UserMode';
+import { UserMode } from './components/user/UserMode';
 import { INITIAL_QUESTIONS } from './constants';
-import { Question } from './types';
+import { Question, StudentInfo } from './types';
+
+interface AssessmentResult {
+  id: string;
+  studentInfo: StudentInfo;
+  score: number;
+  maxScore: number;
+  timestamp: number;
+}
 
 export default function App() {
-  const [mode, setMode] = useState<'selection' | 'user' | 'admin'>('selection');
-  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
+  const [mode, setMode] = useState<'selection' | 'user' | 'admin' | 'results'>('selection');
+  
+  // Load questions from localStorage or use INITIAL_QUESTIONS
+  const [questions, setQuestions] = useState<Question[]>(() => {
+    const saved = localStorage.getItem('assessment_questions');
+    return saved ? JSON.parse(saved) : INITIAL_QUESTIONS;
+  });
+
+  // Load results from localStorage
+  const [results, setResults] = useState<AssessmentResult[]>(() => {
+    const saved = localStorage.getItem('assessment_results');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Save questions to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('assessment_questions', JSON.stringify(questions));
+  }, [questions]);
+
+  // Save results to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('assessment_results', JSON.stringify(results));
+  }, [results]);
+
+  const handleFinish = (score: number, maxScore: number, info: StudentInfo) => {
+    const newResult: AssessmentResult = {
+      id: crypto.randomUUID(),
+      studentInfo: info,
+      score,
+      maxScore,
+      timestamp: Date.now()
+    };
+    setResults(prev => [newResult, ...prev]);
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans selection:bg-[#cbd5e1]">
@@ -67,16 +108,82 @@ export default function App() {
         {mode === 'user' && (
           <UserMode 
             questions={questions} 
-            onFinish={() => {}} 
+            onFinish={handleFinish} 
           />
         )}
 
         {mode === 'admin' && (
-          <AdminMode 
-            questions={questions} 
-            setQuestions={setQuestions} 
-            onExit={() => setMode('selection')} 
-          />
+          <div className="space-y-6">
+            <div className="flex justify-end space-x-4">
+              <button 
+                onClick={() => setMode('results')}
+                className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>응시 결과 보기</span>
+              </button>
+            </div>
+            <AdminMode 
+              questions={questions} 
+              setQuestions={setQuestions} 
+              onExit={() => setMode('selection')} 
+            />
+          </div>
+        )}
+
+        {mode === 'results' && (
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">응시 결과 목록</h2>
+                <p className="text-sm text-slate-500 mt-1">학생들의 평가 점수와 정보를 확인합니다.</p>
+              </div>
+              <button 
+                onClick={() => setMode('admin')}
+                className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-200 transition-all"
+              >
+                뒤로가기
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                  <tr>
+                    <th className="px-4 py-3 font-bold">학생 정보</th>
+                    <th className="px-4 py-3 font-bold">점수</th>
+                    <th className="px-4 py-3 font-bold">응시 일시</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {results.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-10 text-center text-slate-400 italic">
+                        아직 응시 결과가 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    results.map(res => (
+                      <tr key={res.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-4">
+                          <div className="font-bold text-slate-800">{res.studentInfo.name}</div>
+                          <div className="text-[10px] text-slate-400">{res.studentInfo.department} / {res.studentInfo.studentId}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="font-mono font-bold text-indigo-600">{res.score}</span>
+                          <span className="text-slate-300 mx-1">/</span>
+                          <span className="text-slate-400">{res.maxScore}</span>
+                        </td>
+                        <td className="px-4 py-4 text-slate-500 text-xs">
+                          {new Date(res.timestamp).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
 
         {/* Back to Selection button when in User mode */}
