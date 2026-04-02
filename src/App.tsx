@@ -25,7 +25,8 @@ interface AssessmentResult {
 }
 
 export default function App() {
-  const [mode, setMode] = useState<'selection' | 'user' | 'admin' | 'results'>('selection');
+  const isUserOnly = import.meta.env.VITE_USER_ONLY === 'true';
+  const [mode, setMode] = useState<'selection' | 'user' | 'admin' | 'results'>(isUserOnly ? 'user' : 'selection');
   
   // Load questions from localStorage or use INITIAL_QUESTIONS
   const [questions, setQuestions] = useState<Question[]>(() => {
@@ -73,7 +74,7 @@ export default function App() {
           <p className="text-slate-500 mt-2">정확하고 명확한 역량 진단 도구</p>
         </header>
 
-        {mode === 'selection' && (
+        {mode === 'selection' && !isUserOnly && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
             <button 
               onClick={() => setMode('user')}
@@ -112,7 +113,7 @@ export default function App() {
           />
         )}
 
-        {mode === 'admin' && (
+        {mode === 'admin' && !isUserOnly && (
           <div className="space-y-6">
             <div className="flex justify-end space-x-4">
               <button 
@@ -131,7 +132,7 @@ export default function App() {
           </div>
         )}
 
-        {mode === 'results' && (
+        {mode === 'results' && !isUserOnly && (
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
             <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-6">
               <div>
@@ -187,7 +188,7 @@ export default function App() {
         )}
 
         {/* Back to Selection button when in User mode */}
-        {mode === 'user' && (
+        {mode === 'user' && !isUserOnly && (
           <div className="fixed bottom-6 right-6">
             <button 
               onClick={() => setMode('selection')}
